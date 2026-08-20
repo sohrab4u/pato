@@ -128,15 +128,6 @@ st.markdown(
         color: #94A3B8;
         margin-top: 3px;
     }
-
-    /* Upload Container Panel */
-    .upload-box {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 14px;
-        margin-bottom: 16px;
-    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -154,7 +145,25 @@ def find_column(df, possible_names):
     return None
 
 def normalize_text(series):
-    return series.astype(str).str.strip().str.title()
+    """Safely converts to string, cleans whitespace and NaN representations."""
+    return (
+        series.fillna("Unknown")
+        .astype(str)
+        .str.strip()
+        .replace({"": "Unknown", "nan": "Unknown", "None": "Unknown", "NAN": "Unknown"})
+        .str.title()
+    )
+
+def safe_unique_list(series_list):
+    """Combines multiple series/iterables and returns a sorted list of unique non-empty strings."""
+    combined = set()
+    for s in series_list:
+        for item in s:
+            if pd.notna(item):
+                item_str = str(item).strip()
+                if item_str and item_str.lower() not in ["none", "nan", "null"]:
+                    combined.add(item_str)
+    return sorted(list(combined), key=lambda x: str(x).lower())
 
 @st.cache_data(show_spinner=False)
 def load_csv(file):
@@ -183,7 +192,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Render File Uploaders on Main Workspace
 with st.expander("📂 File Ingestion (Upload CSV & Excel)", expanded=True):
     col_up1, col_up2 = st.columns(2)
     with col_up1:
@@ -193,8 +201,6 @@ with st.expander("📂 File Ingestion (Upload CSV & Excel)", expanded=True):
 
 if not csv_file or not excel_file:
     st.info("👆 Please upload both the **High-Risk Patient CSV** and the **Follow-up Excel** file above to activate the analytics.")
-    
-    # Clean sidebar placeholder when waiting for files
     with st.sidebar:
         st.markdown("### 🩺 Navigation")
         st.caption("Awaiting data upload...")
@@ -206,7 +212,6 @@ if not csv_file or not excel_file:
 df_csv_raw = load_csv(csv_file)
 df_excel_raw = load_excel(excel_file)
 
-# Dynamic column detection
 col_p_dist = find_column(df_csv_raw, ["Current Facility District", "District", "District Name"])
 col_p_tu = find_column(df_csv_raw, ["Current Facility TBU", "Current Facility TU", "TU", "Tuberculosis Unit", "TBU"])
 col_p_id = find_column(df_csv_raw, ["Episode ID", "Patient ID", "Nikshay ID", "ID"])
@@ -240,15 +245,14 @@ else:
 df_fu = df_excel_raw.copy()
 df_fu["District_Clean"] = normalize_text(df_fu[col_f_dist])
 df_fu["TU_Clean"] = normalize_text(df_fu[col_f_tu]) if col_f_tu else "Unknown"
-df_fu["User_Clean"] = df_fu[col_f_user].astype(str).str.strip() if col_f_user else "Unassigned"
+df_fu["User_Clean"] = normalize_text(df_fu[col_f_user]) if col_f_user else "Unassigned"
 
 if col_f_count:
     df_fu["Followup_Count_Num"] = pd.to_numeric(df_fu[col_f_count], errors="coerce").fillna(0).astype(int)
 else:
     df_fu["Followup_Count_Num"] = 1
 
-# Check for line-list matching vs aggregate matching
-has_patient_level_fu = bool(col_f_id and col_p_id and set(df_fu[col_f_id]).intersection(set(df_pt[col_p_id])))
+has_patient_level_fu = bool(col_f_id and col_p_id and set(df_fu[col_f_id].dropna()).intersection(set(df_pt[col_p_id].dropna())))
 
 if has_patient_level_fu:
     fu_matched_ids = set(df_fu.dropna(subset=[col_f_id])[col_f_id])
@@ -266,8 +270,8 @@ else:
 with st.sidebar:
     st.markdown("### 🔍 Filter Controls")
     
-    # 1. Multi-District Selection
-    all_districts = sorted(list(set(df_pt["District_Clean"]).union(set(df_fu["District_Clean"]))))
+    # 1. Multi-District Selection (Type-safe sorting)
+    all_districts = safe_unique_list([df_pt["District_Clean"].unique(), df_fu["District_Clean"].unique()])
     select_all = st.checkbox("Select All Districts", value=True)
     
     if select_all:
@@ -279,18 +283,17 @@ with st.sidebar:
         st.warning("Select at least one district.")
         st.stop()
 
-    # 2. TU Selection (Cascaded)
-    tu_pool = set(df_pt[df_pt["District_Clean"].isin(selected_districts)]["TU_Clean"]).union(
-        set(df_fu[df_fu["District_Clean"].isin(selected_districts)]["TU_Clean"])
-    )
-    available_tus = sorted(list(tu_pool))
+    # 2. TU Selection (Cascaded & Type-safe)
+    pt_tus = df_pt[df_pt["District_Clean"].isin(selected_districts)]["TU_Clean"].unique()
+    fu_tus = df_fu[df_fu["District_Clean"].isin(selected_districts)]["TU_Clean"].unique()
+    available_tus = safe_unique_list([pt_tus, fu_tus])
     tu_choice = st.selectbox("TU (Tuberculosis Unit)", ["All"] + available_tus)
 
-    # 3. User Selection (Cascaded)
+    # 3. User Selection (Cascaded & Type-safe)
     fu_user_scoped = df_fu[df_fu["District_Clean"].isin(selected_districts)].copy()
     if tu_choice != "All":
         fu_user_scoped = fu_user_scoped[fu_user_scoped["TU_Clean"] == tu_choice]
-    available_users = sorted(fu_user_scoped["User_Clean"].dropna().unique().tolist())
+    available_users = safe_unique_list([fu_user_scoped["User_Clean"].unique()])
     user_choice = st.selectbox("User (Field Staff)", ["All"] + available_users)
 
 # ---------------------------------------------------------
@@ -308,7 +311,6 @@ if user_choice != "All":
     if has_patient_level_fu:
         filtered_pt = filtered_pt[filtered_pt["Follow-up User"] == user_choice]
 
-# Accurate KPI aggregations
 kpi_total_patients = len(filtered_pt)
 
 if has_patient_level_fu:
@@ -382,7 +384,6 @@ st.write("")
 # ---------------------------------------------------------
 # 9. Dynamic Aggregation Tables
 # ---------------------------------------------------------
-# District Level Table
 d_pt = filtered_pt.groupby("District_Clean").size().reset_index(name="Total High-Risk Patients")
 if has_patient_level_fu:
     d_fu = filtered_pt[filtered_pt["Follow-up Status"] == "Completed"].groupby("District_Clean").size().reset_index(name="Follow-up Completed")
@@ -400,7 +401,6 @@ district_df["Follow-up %"] = (
 )
 district_df = district_df.rename(columns={"District_Clean": "District"}).sort_values(by="Total High-Risk Patients", ascending=False)
 
-# TU Level Table
 t_pt = filtered_pt.groupby(["District_Clean", "TU_Clean"]).size().reset_index(name="Total High-Risk Patients")
 if has_patient_level_fu:
     t_fu = filtered_pt[filtered_pt["Follow-up Status"] == "Completed"].groupby(["District_Clean", "TU_Clean"]).size().reset_index(name="Follow-up Completed")
@@ -418,7 +418,6 @@ tu_df["Follow-up %"] = (
 )
 tu_df = tu_df.rename(columns={"District_Clean": "District", "TU_Clean": "TU"}).sort_values(by="Total High-Risk Patients", ascending=False)
 
-# User Level Table
 if has_patient_level_fu:
     user_df = (
         filtered_pt[filtered_pt["Follow-up Status"] == "Completed"]
