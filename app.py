@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # ---------------------------------------------------------
-# 1. Page Configuration & Layout Styling
+# 1. Page Configuration & Responsive Viewport Styling
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="High-Risk TB Patient Follow-up Portal",
@@ -23,56 +23,67 @@ st.markdown(
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
     
+    /* Adjust Streamlit default excessive paddings */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 100% !important;
+    }
+    
     .main {
         background-color: #F8FAFC;
     }
     
-    /* Professional Compact Sidebar - Zero Scroll */
+    /* Responsive, compact Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #0F172A !important;
-        padding-top: 1.2rem !important;
+        padding-top: 1rem !important;
         padding-bottom: 0.5rem !important;
-        width: 300px !important;
     }
     section[data-testid="stSidebar"] * {
         color: #F1F5F9 !important;
     }
     section[data-testid="stSidebar"] .stSelectbox label, 
     section[data-testid="stSidebar"] .stMultiSelect label {
-        font-size: 0.82rem !important;
+        font-size: 0.8rem !important;
         font-weight: 600 !important;
         color: #94A3B8 !important;
         margin-bottom: 2px !important;
     }
     section[data-testid="stSidebar"] .stCheckbox label {
-        font-size: 0.8rem !important;
+        font-size: 0.78rem !important;
         color: #CBD5E1 !important;
     }
     
-    /* Multiselect tag badge */
+    /* Compact multiselect badges */
     span[data-baseweb="tag"] {
         background-color: #2563EB !important;
         border-radius: 4px !important;
+        font-size: 0.75rem !important;
+        padding: 2px 6px !important;
     }
 
-    /* Main Hero Header */
+    /* Main Responsive Hero Header */
     .hero-banner {
         background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin-bottom: 16px;
+        border-radius: 8px;
+        padding: 12px 18px;
+        margin-bottom: 12px;
         display: flex;
         align-items: center;
         justify-content: space-between;
     }
     .hero-title {
-        font-size: 1.35rem;
+        font-size: clamp(1.1rem, 1.4vw, 1.35rem);
         font-weight: 800;
         color: #FFFFFF;
         margin: 0;
+        line-height: 1.2;
     }
     .hero-subtitle {
-        font-size: 0.82rem;
+        font-size: clamp(0.75rem, 0.9vw, 0.82rem);
         color: #94A3B8;
         margin-top: 2px;
     }
@@ -80,21 +91,22 @@ st.markdown(
         background: #10B98122;
         color: #10B981;
         border: 1px solid #10B98144;
-        padding: 3px 10px;
-        border-radius: 16px;
-        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
         font-weight: 600;
     }
 
-    /* KPI Cards */
+    /* Auto-Fitting Dynamic KPI Cards */
     .kpi-card {
         background: #FFFFFF;
         border-radius: 8px;
-        padding: 14px 18px;
+        padding: 10px 14px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         border: 1px solid #E2E8F0;
         position: relative;
         overflow: hidden;
+        margin-bottom: 8px;
     }
     .kpi-card::before {
         content: '';
@@ -110,23 +122,23 @@ st.markdown(
     .kpi-purple::before { background: #8B5CF6; }
 
     .kpi-label {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.4px;
         color: #64748B;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
     .kpi-value {
-        font-size: 1.65rem;
+        font-size: clamp(1.3rem, 1.8vw, 1.6rem);
         font-weight: 800;
         color: #0F172A;
         line-height: 1.1;
     }
     .kpi-desc {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         color: #94A3B8;
-        margin-top: 3px;
+        margin-top: 2px;
     }
     </style>
     """,
@@ -265,12 +277,12 @@ else:
     df_pt["Follow-up User"] = "See User Tab"
 
 # ---------------------------------------------------------
-# 6. Clean, Zero-Scroll Sidebar Controls
+# 6. Compact Sidebar Controls
 # ---------------------------------------------------------
 with st.sidebar:
     st.markdown("### 🔍 Filter Controls")
     
-    # 1. Multi-District Selection (Type-safe sorting)
+    # 1. Multi-District Selection
     all_districts = safe_unique_list([df_pt["District_Clean"].unique(), df_fu["District_Clean"].unique()])
     select_all = st.checkbox("Select All Districts", value=True)
     
@@ -283,13 +295,13 @@ with st.sidebar:
         st.warning("Select at least one district.")
         st.stop()
 
-    # 2. TU Selection (Cascaded & Type-safe)
+    # 2. TU Selection
     pt_tus = df_pt[df_pt["District_Clean"].isin(selected_districts)]["TU_Clean"].unique()
     fu_tus = df_fu[df_fu["District_Clean"].isin(selected_districts)]["TU_Clean"].unique()
     available_tus = safe_unique_list([pt_tus, fu_tus])
     tu_choice = st.selectbox("TU (Tuberculosis Unit)", ["All"] + available_tus)
 
-    # 3. User Selection (Cascaded & Type-safe)
+    # 3. User Selection
     fu_user_scoped = df_fu[df_fu["District_Clean"].isin(selected_districts)].copy()
     if tu_choice != "All":
         fu_user_scoped = fu_user_scoped[fu_user_scoped["TU_Clean"] == tu_choice]
@@ -322,7 +334,7 @@ kpi_pending = max(0, kpi_total_patients - kpi_completed)
 kpi_rate = round((kpi_completed / kpi_total_patients * 100), 2) if kpi_total_patients > 0 else 0.0
 
 # ---------------------------------------------------------
-# 8. Scope Subheader & KPI Cards
+# 8. Scope Subheader & Dynamic KPI Cards
 # ---------------------------------------------------------
 if len(selected_districts) == len(all_districts):
     scope_dist_txt = "All Districts"
@@ -378,8 +390,6 @@ with c4:
         """,
         unsafe_allow_html=True,
     )
-
-st.write("")
 
 # ---------------------------------------------------------
 # 9. Dynamic Aggregation Tables
@@ -441,24 +451,29 @@ user_df["Follow-up %"] = (
 user_df = user_df.sort_values(by="Patients Followed Up", ascending=False)
 
 # ---------------------------------------------------------
-# 10. Visualizations & Analytical Views
+# 10. Responsive Visualizations & Analytical Views
 # ---------------------------------------------------------
 tab_charts, tab_tu_view, tab_users, tab_pt_details = st.tabs(
     ["📊 District Overview", "🏥 TU-Level Breakdown", "👥 Staff Performance", "📋 Filtered Patient Line-List"]
 )
 
 with tab_charts:
-    col_g1, col_g2 = st.columns([7, 5])
+    col_g1, col_g2 = st.columns([6, 6])
     with col_g1:
         st.markdown("**Follow-up vs Pending by District**")
         fig_bar = go.Figure()
         fig_bar.add_trace(go.Bar(name="Completed", x=district_df["District"].head(15), y=district_df["Follow-up Completed"].head(15), marker_color="#10B981"))
         fig_bar.add_trace(go.Bar(name="Pending", x=district_df["District"].head(15), y=district_df["Pending Follow-up"].head(15), marker_color="#EF4444"))
-        fig_bar.update_layout(barmode="stack", height=380, margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h", y=1.1, x=0.3))
+        fig_bar.update_layout(
+            barmode="stack",
+            height=320,
+            margin=dict(l=10, r=10, t=15, b=10),
+            legend=dict(orientation="h", y=1.12, x=0.25, font=dict(size=11)),
+        )
         st.plotly_chart(fig_bar, use_container_width=True)
     with col_g2:
         st.markdown("**District Summary Table**")
-        st.dataframe(district_df, use_container_width=True, height=380)
+        st.dataframe(district_df, use_container_width=True, height=320)
 
 with tab_tu_view:
     col_tu1, col_tu2 = st.columns([6, 6])
@@ -471,11 +486,15 @@ with tab_tu_view:
             barmode="group",
             color_discrete_sequence=["#3B82F6", "#F59E0B"],
         )
-        fig_tu.update_layout(height=380, margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h", y=1.1, x=0.3))
+        fig_tu.update_layout(
+            height=320,
+            margin=dict(l=10, r=10, t=15, b=10),
+            legend=dict(orientation="h", y=1.12, x=0.25, font=dict(size=11)),
+        )
         st.plotly_chart(fig_tu, use_container_width=True)
     with col_tu2:
         st.markdown("**TU Analytical Table**")
-        st.dataframe(tu_df, use_container_width=True, height=380)
+        st.dataframe(tu_df, use_container_width=True, height=320)
 
 with tab_users:
     col_u1, col_u2 = st.columns([5, 7])
@@ -489,16 +508,20 @@ with tab_users:
             color="Patients Followed Up",
             color_continuous_scale="Blues",
         )
-        fig_u.update_layout(yaxis=dict(autorange="reversed"), height=380, margin=dict(l=10, r=10, t=20, b=10))
+        fig_u.update_layout(
+            yaxis=dict(autorange="reversed"),
+            height=320,
+            margin=dict(l=10, r=10, t=15, b=10),
+        )
         st.plotly_chart(fig_u, use_container_width=True)
     with col_u2:
         st.markdown("**User Follow-up Table**")
-        st.dataframe(user_df, use_container_width=True, height=380)
+        st.dataframe(user_df, use_container_width=True, height=320)
 
 with tab_pt_details:
     st.markdown("**Patient Records in Active Filter Scope**")
     display_cols = [c for c in filtered_pt.columns if c not in ["District_Clean", "TU_Clean"]]
-    st.dataframe(filtered_pt[display_cols].head(1000), use_container_width=True, height=380)
+    st.dataframe(filtered_pt[display_cols].head(1000), use_container_width=True, height=340)
     if len(filtered_pt) > 1000:
         st.caption(f"Displaying first 1,000 records of {len(filtered_pt):,} matching patients.")
 
