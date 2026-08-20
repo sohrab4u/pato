@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # ---------------------------------------------------------
-# 1. Page Configuration & Responsive Viewport Styling
+# 1. Page Configuration & Responsive Modern Styling
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="High-Risk TB Patient Follow-up Portal",
@@ -23,12 +23,11 @@ st.markdown(
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
     
-    /* Adjust Streamlit default excessive paddings */
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 1.2rem !important;
         padding-bottom: 2rem !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
+        padding-left: 1.8rem !important;
+        padding-right: 1.8rem !important;
         max-width: 100% !important;
     }
     
@@ -36,36 +35,87 @@ st.markdown(
         background-color: #F8FAFC;
     }
     
-    /* Responsive, compact Sidebar */
+    /* Professional Compact Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #0F172A !important;
-        padding-top: 1rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 0.8rem !important;
+        padding-bottom: 0.8rem !important;
     }
     section[data-testid="stSidebar"] * {
         color: #F1F5F9 !important;
     }
     section[data-testid="stSidebar"] .stSelectbox label, 
-    section[data-testid="stSidebar"] .stMultiSelect label {
-        font-size: 0.8rem !important;
+    section[data-testid="stSidebar"] .stMultiSelect label,
+    section[data-testid="stSidebar"] .stFileUploader label {
+        font-size: 0.78rem !important;
         font-weight: 600 !important;
         color: #94A3B8 !important;
-        margin-bottom: 2px !important;
+        margin-bottom: 1px !important;
     }
     section[data-testid="stSidebar"] .stCheckbox label {
-        font-size: 0.78rem !important;
+        font-size: 0.75rem !important;
         color: #CBD5E1 !important;
     }
     
-    /* Compact multiselect badges */
+    /* Compact File Uploader dropzone to eliminate empty space */
+    div[data-testid="stFileUploader"] {
+        padding: 0px !important;
+        margin-bottom: 6px !important;
+    }
+    div[data-testid="stFileUploader"] section {
+        padding: 6px 10px !important;
+        background: #1E293B !important;
+        border: 1px dashed #334155 !important;
+        border-radius: 6px !important;
+        min-height: unset !important;
+    }
+    div[data-testid="stFileUploader"] section small {
+        display: none !important;
+    }
+    div[data-testid="stFileUploader"] button {
+        background-color: #2563EB !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        border-radius: 4px !important;
+        padding: 3px 8px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* Multiselect tag badge */
     span[data-baseweb="tag"] {
         background-color: #2563EB !important;
         border-radius: 4px !important;
-        font-size: 0.75rem !important;
-        padding: 2px 6px !important;
+        font-size: 0.72rem !important;
+        padding: 1px 5px !important;
     }
 
-    /* Main Responsive Hero Header */
+    /* Sidebar Badge & Dividers */
+    .sidebar-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
+        color: #FFFFFF !important;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    .sidebar-section-title {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: #FFFFFF !important;
+        margin-top: 6px;
+        margin-bottom: 4px;
+    }
+    .sidebar-divider {
+        height: 1px;
+        background: #334155;
+        margin: 10px 0 8px 0;
+    }
+
+    /* Main Header Banner */
     .hero-banner {
         background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
         border-radius: 8px;
@@ -74,16 +124,17 @@ st.markdown(
         display: flex;
         align-items: center;
         justify-content: space-between;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
     }
     .hero-title {
-        font-size: clamp(1.1rem, 1.4vw, 1.35rem);
+        font-size: clamp(1.1rem, 1.35vw, 1.3rem);
         font-weight: 800;
         color: #FFFFFF;
         margin: 0;
         line-height: 1.2;
     }
     .hero-subtitle {
-        font-size: clamp(0.75rem, 0.9vw, 0.82rem);
+        font-size: clamp(0.72rem, 0.85vw, 0.8rem);
         color: #94A3B8;
         margin-top: 2px;
     }
@@ -97,7 +148,7 @@ st.markdown(
         font-weight: 600;
     }
 
-    /* Auto-Fitting Dynamic KPI Cards */
+    /* Modern Responsive KPI Cards */
     .kpi-card {
         background: #FFFFFF;
         border-radius: 8px;
@@ -130,7 +181,7 @@ st.markdown(
         margin-bottom: 2px;
     }
     .kpi-value {
-        font-size: clamp(1.3rem, 1.8vw, 1.6rem);
+        font-size: clamp(1.25rem, 1.7vw, 1.55rem);
         font-weight: 800;
         color: #0F172A;
         line-height: 1.1;
@@ -146,7 +197,7 @@ st.markdown(
 )
 
 # ---------------------------------------------------------
-# 2. Data Processing & Auto-Detection Helpers
+# 2. Data Processing & Safe Normalization Helpers
 # ---------------------------------------------------------
 def find_column(df, possible_names):
     col_map = {str(c).strip().lower().replace("_", " ").replace("-", " "): c for c in df.columns}
@@ -157,7 +208,7 @@ def find_column(df, possible_names):
     return None
 
 def normalize_text(series):
-    """Safely converts to string, cleans whitespace and NaN representations."""
+    """Safely converts to string and cleans whitespace and NaN values."""
     return (
         series.fillna("Unknown")
         .astype(str)
@@ -167,7 +218,7 @@ def normalize_text(series):
     )
 
 def safe_unique_list(series_list):
-    """Combines multiple series/iterables and returns a sorted list of unique non-empty strings."""
+    """Combines multiple series/iterables into a type-safe, sorted list of unique strings."""
     combined = set()
     for s in series_list:
         for item in s:
@@ -190,32 +241,31 @@ def load_excel(file):
     return pd.read_excel(file)
 
 # ---------------------------------------------------------
-# 3. Main Workspace: File Upload Section
+# 3. Sidebar: Compact File Ingestion & Filters
 # ---------------------------------------------------------
-st.markdown(
-    """
-    <div class="hero-banner">
-        <div>
-            <div class="hero-title">High-Risk TB Patient Follow-up Portal</div>
-            <div class="hero-subtitle">State & District-Level Treatment Follow-up Monitoring System</div>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-with st.expander("📂 File Ingestion (Upload CSV & Excel)", expanded=True):
-    col_up1, col_up2 = st.columns(2)
-    with col_up1:
-        csv_file = st.file_uploader("1. High-Risk Patient Line List (CSV)", type=["csv"], help="Upload CSV containing patient records.")
-    with col_up2:
-        excel_file = st.file_uploader("2. Follow-up Report (Excel)", type=["xlsx", "xls"], help="Upload Excel containing user follow-up progress.")
+with st.sidebar:
+    st.markdown('<div class="sidebar-badge">TB Analytics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-section-title">📁 File Ingestion</div>', unsafe_allow_html=True)
+    
+    csv_file = st.file_uploader("1. Patient Line List (CSV)", type=["csv"], help="Upload CSV containing High-Risk TB patient records.")
+    excel_file = st.file_uploader("2. Follow-up Report (Excel)", type=["xlsx", "xls"], help="Upload Excel containing user follow-up progress.")
+    
+    st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
 
 if not csv_file or not excel_file:
-    st.info("👆 Please upload both the **High-Risk Patient CSV** and the **Follow-up Excel** file above to activate the analytics.")
-    with st.sidebar:
-        st.markdown("### 🩺 Navigation")
-        st.caption("Awaiting data upload...")
+    st.markdown(
+        """
+        <div class="hero-banner">
+            <div>
+                <div class="hero-title">High-Risk TB Patient Follow-up Portal</div>
+                <div class="hero-subtitle">Multi-District Treatment Follow-up Monitoring & Analytics System</div>
+            </div>
+            <div class="status-pill">Waiting for Files</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.info("👈 **Please upload both the High-Risk Patient CSV and the Follow-up Excel file in the sidebar to activate the dashboard.**")
     st.stop()
 
 # ---------------------------------------------------------
@@ -277,10 +327,10 @@ else:
     df_pt["Follow-up User"] = "See User Tab"
 
 # ---------------------------------------------------------
-# 6. Compact Sidebar Controls
+# 6. Sidebar Cascading Controls
 # ---------------------------------------------------------
 with st.sidebar:
-    st.markdown("### 🔍 Filter Controls")
+    st.markdown('<div class="sidebar-section-title">🔍 Dynamic Filters</div>', unsafe_allow_html=True)
     
     # 1. Multi-District Selection
     all_districts = safe_unique_list([df_pt["District_Clean"].unique(), df_fu["District_Clean"].unique()])
@@ -309,7 +359,7 @@ with st.sidebar:
     user_choice = st.selectbox("User (Field Staff)", ["All"] + available_users)
 
 # ---------------------------------------------------------
-# 7. Apply Filters & Compute Metrics
+# 7. Apply Filters & Compute Accurate Metrics
 # ---------------------------------------------------------
 filtered_pt = df_pt[df_pt["District_Clean"].isin(selected_districts)].copy()
 filtered_fu = df_fu[df_fu["District_Clean"].isin(selected_districts)].copy()
@@ -343,7 +393,18 @@ elif len(selected_districts) <= 3:
 else:
     scope_dist_txt = f"{len(selected_districts)} Districts Selected"
 
-st.caption(f"Active Scope: **{scope_dist_txt}** | TU: **{tu_choice}** | User: **{user_choice}**")
+st.markdown(
+    f"""
+    <div class="hero-banner">
+        <div>
+            <div class="hero-title">High-Risk TB Patient Monitoring</div>
+            <div class="hero-subtitle">Scope: {scope_dist_txt} | TU: {tu_choice} | User: {user_choice}</div>
+        </div>
+        <div class="status-pill">● System Active</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
