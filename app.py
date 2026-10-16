@@ -5,25 +5,28 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# ReportLab imports for professional PDF generation
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.lib import colors
-from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle,
-)
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
+# ---------------------------------------------------------
+# Safe Imports with Friendly Cloud Deployment Fallbacks
+# ---------------------------------------------------------
+try:
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    REPORTLAB_AVAILABLE = True
+except ModuleNotFoundError:
+    REPORTLAB_AVAILABLE = False
 
-# python-docx imports for executive Word (.docx) export
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
+try:
+    from docx import Document
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.oxml import parse_xml
+    from docx.oxml.ns import nsdecls
+    DOCX_AVAILABLE = True
+except ModuleNotFoundError:
+    DOCX_AVAILABLE = False
 
 # ---------------------------------------------------------
 # 1. Page Configuration & Professional CSS Styling
@@ -326,6 +329,9 @@ def load_any_table(file_bytes, filename):
 # 3. ReportLab Enterprise PDF Generator
 # ---------------------------------------------------------
 def generate_pdf_report(title_text, subtitle_text, sections, landscape_mode=True):
+    if not REPORTLAB_AVAILABLE:
+        return b""
+
     buffer = io.BytesIO()
     page_size = landscape(letter) if landscape_mode else letter
     margin = 0.35 * inch
@@ -482,6 +488,9 @@ def generate_pdf_report(title_text, subtitle_text, sections, landscape_mode=True
 # 4. Executive Word (.docx) Report Generator
 # ---------------------------------------------------------
 def generate_word_report(title_text, subtitle_text, summary_stats, insights_list, recommendations_list, data_tables):
+    if not DOCX_AVAILABLE:
+        return b""
+
     doc = Document()
     
     for sec in doc.sections:
@@ -605,6 +614,10 @@ with st.sidebar:
         type=["csv", "xlsx", "xls"],
         help="Upload CSV or Excel containing follow-up completion records.",
     )
+    
+    if not REPORTLAB_AVAILABLE or not DOCX_AVAILABLE:
+        st.caption("⚠️ Optional: Add `reportlab` & `python-docx` to `requirements.txt` for PDF/Word exports.")
+
     st.markdown('<div class="sidebar-sep"></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
@@ -698,11 +711,9 @@ else:
 all_districts = safe_unique_list([df_pt["District_Clean"].unique(), df_fu["District_Clean"].unique()])
 total_dist_count = len(all_districts)
 
-# Session state initialization for district selections
 if "selected_districts_list" not in st.session_state:
     st.session_state["selected_districts_list"] = all_districts.copy()
 
-# Callbacks to instantly select all or clear all
 def do_select_all_districts():
     st.session_state["selected_districts_list"] = all_districts.copy()
 
@@ -712,14 +723,12 @@ def do_clear_all_districts():
 with st.sidebar:
     st.markdown('<div class="sidebar-heading">🔍 Scope Filtering</div>', unsafe_allow_html=True)
     
-    # Select All / Clear All Buttons
     col_b1, col_b2 = st.columns(2)
     with col_b1:
         st.button("✅ Select All", on_click=do_select_all_districts, width="stretch")
     with col_b2:
         st.button("❌ Clear All", on_click=do_clear_all_districts, width="stretch")
 
-    # Native Autocomplete & Multi-Selection Box
     selected_districts = st.multiselect(
         "📍 Type or Select District(s):",
         options=all_districts,
@@ -728,7 +737,6 @@ with st.sidebar:
         placeholder="Type district name to search...",
         help="Type any letter to instantly filter and select multiple districts."
     )
-    # Sync state
     st.session_state["selected_districts_list"] = selected_districts
 
     active_count = len(selected_districts)
@@ -774,7 +782,6 @@ if selected_districts:
         if has_patient_level_fu:
             filtered_pt = filtered_pt[filtered_pt["Follow-up User"] == user_choice]
 else:
-    # Safe Zero State: empty dataframes with complete schema
     filtered_pt = df_pt.iloc[0:0].copy()
     filtered_fu = df_fu.iloc[0:0].copy()
 
@@ -1101,7 +1108,7 @@ with tab_guide:
         report_title = f"High-Risk TB Comprehensive Diagnostic Analysis ({len(selected_districts)} Districts)"
 
     with c_gd1:
-        if kpi_total_patients > 0:
+        if kpi_total_patients > 0 and REPORTLAB_AVAILABLE:
             guide_pdf_sections = [
                 {
                     "title": "1. Operational KPI Scorecard",
@@ -1131,11 +1138,11 @@ with tab_guide:
             file_name=f"TB_Diagnostic_Guide_{scope_dist_txt.replace(' ', '_').replace(':', '')}.pdf",
             mime="application/pdf",
             width="stretch",
-            disabled=(kpi_total_patients == 0),
+            disabled=(kpi_total_patients == 0 or not REPORTLAB_AVAILABLE),
         )
 
     with c_gd2:
-        if kpi_total_patients > 0:
+        if kpi_total_patients > 0 and DOCX_AVAILABLE:
             guide_docx_bytes = generate_word_report(
                 title_text=report_title,
                 subtitle_text=f"Active Filter Scope: {scope_dist_txt} | TU: {tu_choice} | Staff: {user_choice}",
@@ -1153,7 +1160,7 @@ with tab_guide:
             file_name=f"TB_Diagnostic_Guide_{scope_dist_txt.replace(' ', '_').replace(':', '')}.docx",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             width="stretch",
-            disabled=(kpi_total_patients == 0),
+            disabled=(kpi_total_patients == 0 or not DOCX_AVAILABLE),
         )
 
 # --- TAB 2: DISTRICT OVERVIEW ---
@@ -1176,7 +1183,7 @@ with tab_dist:
         
         c_exp_d1, c_exp_d2 = st.columns(2)
         with c_exp_d1:
-            if not district_df.empty:
+            if not district_df.empty and REPORTLAB_AVAILABLE:
                 dist_pdf = generate_pdf_report(
                     title_text="District-Level TB Follow-up Analysis Report",
                     subtitle_text=f"Scope: {scope_dist_txt}",
@@ -1190,10 +1197,10 @@ with tab_dist:
                 file_name="TB_District_Analysis_Report.pdf",
                 mime="application/pdf",
                 width="stretch",
-                disabled=(district_df.empty),
+                disabled=(district_df.empty or not REPORTLAB_AVAILABLE),
             )
         with c_exp_d2:
-            if not district_df.empty:
+            if not district_df.empty and DOCX_AVAILABLE:
                 dist_docx = generate_word_report(
                     title_text="District-Level TB Follow-up Analysis Report",
                     subtitle_text=f"Scope: {scope_dist_txt}",
@@ -1210,7 +1217,7 @@ with tab_dist:
                 file_name="TB_District_Analysis.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 width="stretch",
-                disabled=(district_df.empty),
+                disabled=(district_df.empty or not DOCX_AVAILABLE),
             )
 
 # --- TAB 3: TU ANALYSIS ---
@@ -1239,7 +1246,7 @@ with tab_tu:
         
         c_exp_t1, c_exp_t2 = st.columns(2)
         with c_exp_t1:
-            if not tu_df.empty:
+            if not tu_df.empty and REPORTLAB_AVAILABLE:
                 tu_pdf = generate_pdf_report(
                     title_text="Tuberculosis Unit (TU) Operational Monitoring Report",
                     subtitle_text=f"District: {scope_dist_txt} | TU: {tu_choice}",
@@ -1253,10 +1260,10 @@ with tab_tu:
                 file_name="TB_TU_Operational_Report.pdf",
                 mime="application/pdf",
                 width="stretch",
-                disabled=(tu_df.empty),
+                disabled=(tu_df.empty or not REPORTLAB_AVAILABLE),
             )
         with c_exp_t2:
-            if not tu_df.empty:
+            if not tu_df.empty and DOCX_AVAILABLE:
                 tu_docx = generate_word_report(
                     title_text="Tuberculosis Unit (TU) Operational Monitoring Report",
                     subtitle_text=f"District: {scope_dist_txt} | TU: {tu_choice}",
@@ -1273,7 +1280,7 @@ with tab_tu:
                 file_name="TB_TU_Analysis.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 width="stretch",
-                disabled=(tu_df.empty),
+                disabled=(tu_df.empty or not DOCX_AVAILABLE),
             )
 
 # --- TAB 4: STAFF PERFORMANCE ---
@@ -1304,7 +1311,7 @@ with tab_staff:
         
         c_exp_u1, c_exp_u2 = st.columns(2)
         with c_exp_u1:
-            if not user_df.empty:
+            if not user_df.empty and REPORTLAB_AVAILABLE:
                 staff_pdf = generate_pdf_report(
                     title_text="Field Staff Follow-up Performance Audit",
                     subtitle_text=f"Scope: {scope_dist_txt} | Staff Selected: {user_choice}",
@@ -1318,10 +1325,10 @@ with tab_staff:
                 file_name="TB_Staff_Productivity_Audit.pdf",
                 mime="application/pdf",
                 width="stretch",
-                disabled=(user_df.empty),
+                disabled=(user_df.empty or not REPORTLAB_AVAILABLE),
             )
         with c_exp_u2:
-            if not user_df.empty:
+            if not user_df.empty and DOCX_AVAILABLE:
                 staff_docx = generate_word_report(
                     title_text="Field Staff Follow-up Performance Audit",
                     subtitle_text=f"Scope: {scope_dist_txt} | Staff Selected: {user_choice}",
@@ -1338,7 +1345,7 @@ with tab_staff:
                 file_name="TB_Staff_Performance.docx",
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 width="stretch",
-                disabled=(user_df.empty),
+                disabled=(user_df.empty or not DOCX_AVAILABLE),
             )
 
 # --- TAB 5: COMPLETE PATIENT LINE-LIST (100% RECORDS) ---
@@ -1388,7 +1395,7 @@ with tab_patients:
             essential_cols = full_patient_dataset.columns[:5].tolist()
         
         pdf_pt_data = full_patient_dataset[essential_cols] if not full_patient_dataset.empty else pd.DataFrame()
-        if not pdf_pt_data.empty:
+        if not pdf_pt_data.empty and REPORTLAB_AVAILABLE:
             line_list_pdf = generate_pdf_report(
                 title_text="Patient Line-List Directory Report",
                 subtitle_text=f"Total Cohort: {len(pdf_pt_data):,} Records | Scope: {scope_dist_txt}",
@@ -1402,7 +1409,7 @@ with tab_patients:
             file_name=f"Patient_LineList_{len(pdf_pt_data)}_records.pdf",
             mime="application/pdf",
             width="stretch",
-            disabled=(len(pdf_pt_data) == 0),
+            disabled=(len(pdf_pt_data) == 0 or not REPORTLAB_AVAILABLE),
         )
 
 st.markdown("---")
@@ -1424,7 +1431,7 @@ def build_consolidated_excel(p_df, d_df, t_df, u_df):
 c_cen1, c_cen2, c_cen3, c_cen4 = st.columns(4)
 
 with c_cen1:
-    if kpi_total_patients > 0:
+    if kpi_total_patients > 0 and REPORTLAB_AVAILABLE:
         consolidated_sections = [
             {"title": "1. District Summary & Coverage", "df": district_df, "summary_stats": global_kpi_summary},
             {"title": "2. Tuberculosis Unit (TU) Level Performance", "df": tu_df},
@@ -1443,11 +1450,11 @@ with c_cen1:
         file_name="Comprehensive_TB_Followup_Executive_Report.pdf",
         mime="application/pdf",
         width="stretch",
-        disabled=(kpi_total_patients == 0),
+        disabled=(kpi_total_patients == 0 or not REPORTLAB_AVAILABLE),
     )
 
 with c_cen2:
-    if kpi_total_patients > 0:
+    if kpi_total_patients > 0 and DOCX_AVAILABLE:
         consolidated_word = generate_word_report(
             title_text="Comprehensive TB Follow-up Executive Analytics Report",
             subtitle_text=f"Scope: {scope_dist_txt} | Focus TU: {tu_choice}",
@@ -1468,7 +1475,7 @@ with c_cen2:
         file_name="Comprehensive_TB_Followup_Executive_Report.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         width="stretch",
-        disabled=(kpi_total_patients == 0),
+        disabled=(kpi_total_patients == 0 or not DOCX_AVAILABLE),
     )
 
 with c_cen3:
